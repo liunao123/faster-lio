@@ -14,6 +14,10 @@
 #include "options.h"
 #include "pointcloud_preprocess.h"
 
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2/convert.h>
+#include <eigen_conversions/eigen_msg.h>
+
 namespace faster_lio {
 
 class LaserMapping {
@@ -95,7 +99,7 @@ class LaserMapping {
 
     /// params
     std::vector<double> extrinT_{3, 0.0};  // lidar-imu translation
-    std::vector<double> imu2base_link_T{3, 0.0};  // imu-baselink translation
+    std::vector<double> T_imu_base{3, 0.0};  // imu-baselink translation
     std::vector<double> extrinR_{9, 0.0};  // lidar-imu rotation
     std::string map_file_path_;
 

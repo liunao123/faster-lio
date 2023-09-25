@@ -89,7 +89,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     nh.param<int>("pcd_save/interval", pcd_save_interval_, -1);
     nh.param<std::vector<double>>("mapping/extrinsic_T", extrinT_, std::vector<double>());
     nh.param<std::vector<double>>("mapping/extrinsic_R", extrinR_, std::vector<double>());
-    nh.param<std::vector<double>>("mapping/imu2base_link_T", imu2base_link_T, std::vector<double>());
+    nh.param<std::vector<double>>("mapping/T_imu_base", T_imu_base, std::vector<double>());
 
     nh.param<float>("ivox_grid_resolution", ivox_options_.resolution_, 0.2);
     nh.param<int>("ivox_nearby_type", ivox_nearby_type, 18);
@@ -700,12 +700,25 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     transform.setRotation(q);
     br.sendTransform(tf::StampedTransform(transform, odom_aft_mapped_.header.stamp, "odom", "imu"));
 
+    // 得到 base_link 在 imu 下的位姿
+    Eigen::Matrix4f T_imu_baselink = Eigen::Matrix4f::Identity();
+    T_imu_baselink(0,3) = T_imu_base[0];
+    T_imu_baselink(1,3) = T_imu_base[1];
+    T_imu_baselink(2,3) = T_imu_base[2];
 
-    geometry_msgs::TransformStamped T_world_baselink;
-    T_world_baselink.transform.translation.x = odom_aft_mapped_.pose.pose.position.x - imu2base_link_T[0];
-    T_world_baselink.transform.translation.y = odom_aft_mapped_.pose.pose.position.y - imu2base_link_T[1];
-    T_world_baselink.transform.translation.z = odom_aft_mapped_.pose.pose.position.z - imu2base_link_T[2];
-    T_world_baselink.transform.rotation = odom_aft_mapped_.pose.pose.orientation; 
+    // 得到 imu 在 world 下的位姿
+    geometry_msgs::TransformStamped T_world_imu;
+    T_world_imu.transform.translation.x = odom_aft_mapped_.pose.pose.position.x;
+    T_world_imu.transform.translation.y = odom_aft_mapped_.pose.pose.position.y;
+    T_world_imu.transform.translation.z = odom_aft_mapped_.pose.pose.position.z;
+    T_world_imu.transform.rotation = odom_aft_mapped_.pose.pose.orientation; 
+    Eigen::Matrix4f T_world_imu_eigen = tf2::transformToEigen(T_world_imu).cast<float>().matrix();
+
+    // 得到 base_link 在 world 下的位姿
+    //  T_wb = T_wi * T_ib
+    auto T_odom_baselink = T_world_imu_eigen * T_imu_baselink ;
+    geometry_msgs::TransformStamped T_world_baselink = tf2::eigenToTransform( Eigen::Isometry3d(T_odom_baselink.cast<double>()) );
+
     T_world_baselink.header.stamp = odom_aft_mapped_.header.stamp;
     T_world_baselink.header.frame_id = "odom";
     T_world_baselink.child_frame_id = "base_footprint";
