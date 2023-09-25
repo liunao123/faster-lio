@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
+
+set(CMAKE_C_COMPILER "/usr/bin/gcc-9")
+set(CMAKE_CXX_COMPILER "/usr/bin/g++-9")
+
 project(faster_lio)
 
 set(DEFAULT_BUILD_TYPE "Release")

@@ -26,6 +26,10 @@ void PointCloudPreprocess::Process(const sensor_msgs::PointCloud2::ConstPtr &msg
             VelodyneHandler(msg);
             break;
 
+        case LidarType::RoboSense:
+            RobosenseHandler(msg);
+            break;
+
         default:
             LOG(ERROR) << "Error LiDAR Type";
             break;
@@ -186,5 +190,51 @@ void PointCloudPreprocess::VelodyneHandler(const sensor_msgs::PointCloud2::Const
         }
     }
 }
+
+void PointCloudPreprocess::RobosenseHandler(const sensor_msgs::PointCloud2::ConstPtr &msg) {
+    cloud_out_.clear();
+    cloud_full_.clear();
+
+    pcl::PointCloud< RsPointXYZIRT > pl_orig;
+    pcl::fromROSMsg(*msg, pl_orig);
+
+    // 激光雷达，去除 nan 点
+    pl_orig.is_dense = false; // 万集的雷达必须加这一句
+    std::vector<int> save_index;
+    // ROS_ERROR("pl_orig->size()is %d",  pl_orig.size());
+    pcl::removeNaNFromPointCloud(pl_orig, pl_orig, save_index);
+    // ROS_ERROR("pl_orig->size()is %d",  pl_orig.size());
+
+    int plsize = pl_orig.points.size();
+    if (plsize == 0)
+    {
+        ROS_ERROR("NO POINTS ......");
+        return;
+    }
+    
+    // ROS_WARN("first, last , msg->header.stamp.toSec() : %f . %f. %f ", pl_orig.points[0].timestamp , pl_orig.points.back().timestamp , msg->header.stamp.toSec());
+    auto first_point_time = pl_orig.points[0].timestamp;
+
+    cloud_out_.reserve(plsize);
+
+    for (int i = 0; i < plsize; i++) {
+        PointType added_pt;
+        added_pt.normal_x = 0;
+        added_pt.normal_y = 0;
+        added_pt.normal_z = 0;
+        added_pt.x = pl_orig.points[i].x;
+        added_pt.y = pl_orig.points[i].y;
+        added_pt.z = pl_orig.points[i].z;
+        added_pt.intensity = pl_orig.points[i].intensity;
+        added_pt.curvature =  (pl_orig.points[i].timestamp - first_point_time) * 1000.0 ;  // curvature unit: ms
+
+        if (i % point_filter_num_ == 0) {
+            if (added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z > (blind_ * blind_)) {
+                cloud_out_.points.push_back(added_pt);
+            }
+        }
+    }
+}
+
 
 }  // namespace faster_lio

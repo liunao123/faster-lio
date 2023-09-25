@@ -5,7 +5,7 @@ add_library(${PROJECT_NAME}
         utils.cc
         )
 
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp livox_ros_driver_gencpp)
+# add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp livox_ros_driver_gencpp ${PCL_LIBRARIES})
 
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}
@@ -14,6 +14,9 @@ target_link_libraries(${PROJECT_NAME}
         tbb
         glog
         yaml-cpp
+        /usr/local/lib/libtbb.so
+        /usr/local/lib/libtbbmalloc.so
+        /usr/local/lib/libtbbmalloc_proxy.so
         )
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PRIVATE ${PYTHON_INCLUDE_DIRS} ${PCL_LIBRARIES} )
