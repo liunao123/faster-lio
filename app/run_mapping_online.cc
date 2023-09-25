@@ -9,7 +9,7 @@
 
 /// run the lidar mapping in online mode
 
-DEFINE_string(traj_log_file, "/opt/csg/slam/navs/src/faster-lio/Log/traj.txt", "path to traj log file");
+DEFINE_string(traj_log_file, "/home/map/faster_lio.txt", "path to traj log file");
 void SigHandle(int sig) {
     faster_lio::options::FLAG_EXIT = true;
     ROS_WARN("catch sig %d", sig);
