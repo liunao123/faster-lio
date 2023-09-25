@@ -95,6 +95,7 @@ class LaserMapping {
 
     /// params
     std::vector<double> extrinT_{3, 0.0};  // lidar-imu translation
+    std::vector<double> imu2base_link_T{3, 0.0};  // imu-baselink translation
     std::vector<double> extrinR_{9, 0.0};  // lidar-imu rotation
     std::string map_file_path_;
 

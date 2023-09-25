@@ -89,6 +89,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     nh.param<int>("pcd_save/interval", pcd_save_interval_, -1);
     nh.param<std::vector<double>>("mapping/extrinsic_T", extrinT_, std::vector<double>());
     nh.param<std::vector<double>>("mapping/extrinsic_R", extrinR_, std::vector<double>());
+    nh.param<std::vector<double>>("mapping/imu2base_link_T", imu2base_link_T, std::vector<double>());
 
     nh.param<float>("ivox_grid_resolution", ivox_options_.resolution_, 0.2);
     nh.param<int>("ivox_nearby_type", ivox_nearby_type, 18);
@@ -698,6 +699,19 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     q.setZ(odom_aft_mapped_.pose.pose.orientation.z);
     transform.setRotation(q);
     br.sendTransform(tf::StampedTransform(transform, odom_aft_mapped_.header.stamp, "odom", "imu"));
+
+
+    geometry_msgs::TransformStamped T_world_baselink;
+    T_world_baselink.transform.translation.x = odom_aft_mapped_.pose.pose.position.x - imu2base_link_T[0];
+    T_world_baselink.transform.translation.y = odom_aft_mapped_.pose.pose.position.y - imu2base_link_T[1];
+    T_world_baselink.transform.translation.z = odom_aft_mapped_.pose.pose.position.z - imu2base_link_T[2];
+    T_world_baselink.transform.rotation = odom_aft_mapped_.pose.pose.orientation; 
+    T_world_baselink.header.stamp = odom_aft_mapped_.header.stamp;
+    T_world_baselink.header.frame_id = "odom";
+    T_world_baselink.child_frame_id = "base_footprint";
+
+    static tf2_ros::TransformBroadcaster static_broadcaster;
+    static_broadcaster.sendTransform( T_world_baselink );
 }
 
 void LaserMapping::PublishFrameWorld() {
@@ -786,10 +800,10 @@ void LaserMapping::Savetrajectory(const std::string &traj_file) {
         return;
     }
 
-    ofs << "#timestamp x y z q_x q_y q_z q_w" << std::endl;
+    // ofs << "#timestamp x y z q_x q_y q_z q_w" << std::endl;
     for (const auto &p : path_.poses) {
-        ofs << std::fixed << std::setprecision(6) << p.header.stamp.toSec() << " " << std::setprecision(15)
-            << p.pose.position.x << " " << p.pose.position.y << " " << p.pose.position.z << " " << p.pose.orientation.x
+        ofs << std::fixed << std::setprecision(6) << p.header.stamp.toSec() << " " << std::setprecision(4)
+            << p.pose.position.x << " " << p.pose.position.y << " " << p.pose.position.z << " "  << std::setprecision(6) << p.pose.orientation.x
             << " " << p.pose.orientation.y << " " << p.pose.orientation.z << " " << p.pose.orientation.w << std::endl;
     }
 
