@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 #include <execution>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/conditional_removal.h>
 
 namespace faster_lio {
 
@@ -14,6 +16,14 @@ void PointCloudPreprocess::Set(LidarType lid_type, double bld, int pfilt_num) {
 void PointCloudPreprocess::Process(const livox_ros_driver::CustomMsg::ConstPtr &msg, PointCloudType::Ptr &pcl_out) {
     AviaHandler(msg);
     *pcl_out = cloud_out_;
+    
+    pcl::RadiusOutlierRemoval< PointType > outrem;
+	outrem.setInputCloud(pcl_out);
+	outrem.setRadiusSearch(3);
+	outrem.setMinNeighborsInRadius(2);
+	// apply filter
+	outrem.filter(*pcl_out);
+
 }
 
 void PointCloudPreprocess::Process(const sensor_msgs::PointCloud2::ConstPtr &msg, PointCloudType::Ptr &pcl_out) {

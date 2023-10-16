@@ -21,7 +21,7 @@ mapping:
     extrinsic_R: [ 1, 0, 0,
                    0, 1, 0,
                    0, 0, 1]
-    T_imu_base: [-0.407, 0.0, 0.0 ] # T_ib   base_link在imu坐标系下的位置
+    T_imu_base: [-0.428, 0.000, -0.388] # T_ib   base_link在imu坐标系下的位置
 
 publish:
     path_publish_en:  true
