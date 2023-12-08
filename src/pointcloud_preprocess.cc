@@ -19,7 +19,7 @@ void PointCloudPreprocess::Process(const livox_ros_driver::CustomMsg::ConstPtr &
     
     pcl::RadiusOutlierRemoval< PointType > outrem;
 	outrem.setInputCloud(pcl_out);
-	outrem.setRadiusSearch(3);
+	outrem.setRadiusSearch(1);
 	outrem.setMinNeighborsInRadius(2);
 	// apply filter
 	outrem.filter(*pcl_out);
@@ -37,6 +37,7 @@ void PointCloudPreprocess::Process(const sensor_msgs::PointCloud2::ConstPtr &msg
             break;
 
         case LidarType::RoboSense:
+            // std::cout << __FILE__ << ":" << __LINE__;
             RobosenseHandler(msg);
             break;
 
@@ -239,9 +240,12 @@ void PointCloudPreprocess::RobosenseHandler(const sensor_msgs::PointCloud2::Cons
         added_pt.curvature =  (pl_orig.points[i].timestamp - first_point_time) * 1000.0 ;  // curvature unit: ms
 
         if (i % point_filter_num_ == 0) {
-            if (added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z > (blind_ * blind_)) {
-                cloud_out_.points.push_back(added_pt);
+            float range_temp_sqrt = added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z ;
+            if(range_temp_sqrt < blind_ * blind_ || range_temp_sqrt > max_blind_ * max_blind_ ) // max_blind 认为是 雷达的有效探测范围
+            {
+              continue;
             }
+            cloud_out_.points.push_back(added_pt);
         }
     }
 }

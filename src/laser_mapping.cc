@@ -78,6 +78,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     nh.param<double>("mapping/b_gyr_cov", b_gyr_cov, 0.0001);
     nh.param<double>("mapping/b_acc_cov", b_acc_cov, 0.0001);
     nh.param<double>("preprocess/blind", preprocess_->Blind(), 0.01);
+    nh.param<double>("preprocess/max_blind", preprocess_->Max_Blind(), 200.0);
     nh.param<float>("preprocess/time_scale", preprocess_->TimeScale(), 1e-3);
     nh.param<int>("preprocess/lidar_type", lidar_type, 1);
     nh.param<int>("preprocess/scan_line", preprocess_->NumScans(), 16);
@@ -104,6 +105,9 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     } else if (lidar_type == 3) {
         preprocess_->SetLidarType(LidarType::OUST64);
         LOG(INFO) << "Using OUST 64 Lidar";
+    } else if (lidar_type == 4) {
+        preprocess_->SetLidarType(LidarType::RoboSense);
+        LOG(INFO) << "Using RoboSense Lidar";
     } else {
         LOG(WARNING) << "unknown lidar_type";
         return false;
@@ -255,6 +259,7 @@ void LaserMapping::SubAndPubToROS(ros::NodeHandle &nh) {
     pub_laser_cloud_effect_world_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered_effect_world", 100000);
     pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("Odometry", 100000);
     pub_path_ = nh.advertise<nav_msgs::Path>("path", 100000);
+    pub_imu_pose_ = nh.advertise<geometry_msgs::PoseStamped>("imu_pose", 100000);
 }
 
 LaserMapping::LaserMapping() {
@@ -687,6 +692,27 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
         odom_aft_mapped_.pose.covariance[i * 6 + 4] = P(k, 1);
         odom_aft_mapped_.pose.covariance[i * 6 + 5] = P(k, 2);
     }
+    geometry_msgs::PoseStamped imu_pose;
+    imu_pose.header = odom_aft_mapped_.header;
+    imu_pose.pose = odom_aft_mapped_.pose.pose;
+    pub_imu_pose_.publish(imu_pose);
+
+    static std::ofstream lio_path_file("/home/map/faster_lio_path.txt", std::ios::out);
+    lio_path_file.open("/home/map/faster_lio_path.txt", std::ios::app);
+    lio_path_file.setf(std::ios::fixed, std::ios::floatfield);
+    lio_path_file.precision(3);
+    lio_path_file << lidar_end_time_ - 0.09 << " "; // to lidar  start time
+    lio_path_file.precision(5);
+
+    lio_path_file
+        << odom_aft_mapped_.pose.pose.position.x << " "
+        << odom_aft_mapped_.pose.pose.position.y << " "
+        << odom_aft_mapped_.pose.pose.position.z << " "
+        << odom_aft_mapped_.pose.pose.orientation.x << " "
+        << odom_aft_mapped_.pose.pose.orientation.y << " "
+        << odom_aft_mapped_.pose.pose.orientation.z << " "
+        << odom_aft_mapped_.pose.pose.orientation.w << std::endl;
+    lio_path_file.close();
 
     static tf::TransformBroadcaster br;
     tf::Transform transform;

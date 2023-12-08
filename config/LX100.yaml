@@ -1,15 +1,15 @@
 common:
     world_frame:  "odom"
-    lid_topic:  "/livox/lidar"
-    imu_topic:  "/livox/imu"
+    lid_topic:  "/velodyne_points"
+    imu_topic:  "/imu_data"
     time_sync_en: false         # ONLY turn on when external time synchronization is really not possible
     
 preprocess:
-    lidar_type: 1                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
-    scan_line:  6
-    blind: 1.0
-    max_blind: 250
-    
+    lidar_type: 4                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
+    scan_line:  16
+    blind: 0.3
+    max_blind: 150
+
 mapping:
     acc_cov: 0.1
     gyr_cov: 0.1
@@ -18,11 +18,10 @@ mapping:
     fov_degree:    100
     det_range:     260.0
     extrinsic_est_en:  false      # true: enable the online estimation of IMU-LiDAR extrinsic
-    extrinsic_T: [ 0.05512, 0.02226, -0.0297 ]
-    extrinsic_R: [ 1, 0, 0,
-                   0, 1, 0,
-                   0, 0, 1]
-    # T_imu_base: [-0.428, 0.000, -0.388] # T_ib   base_link在imu坐标系下的位置
+    extrinsic_T: [0.006236 , -0.025549,  0.088329]
+    extrinsic_R: [0.999949 , -0.007038 , 0.007235,
+                  0.007119 , 0.999911 , -0.011287,
+                  -0.007155 , 0.011338 , 0.999910]
     T_imu_base: [0.0, 0.0, 0.0] # T_ib   base_link在imu坐标系下的位置
 
 publish:
@@ -42,6 +41,6 @@ filter_size_surf: 0.1
 filter_size_map: 0.3             # 暂时未用到，代码中为0， 即倾向于将降采样后的scan中的所有点加入map
 cube_side_length: 1000
 
-ivox_grid_resolution: 0.15        # default=0.2
+ivox_grid_resolution: 0.1        # default=0.2
 ivox_nearby_type: 26             # 6, 18, 26
 esti_plane_threshold: 0.1        # default=0.1

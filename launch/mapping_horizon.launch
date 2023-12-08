@@ -1,23 +1,22 @@
 <launch>
-<!-- Launch file for Livox Horizon LiDAR -->
+    <!-- Launch file for Livox Horizon LiDAR -->
 
 	<arg name="rviz" default="true" />
 
 	<rosparam command="load" file="$(find faster_lio)/config/horizon.yaml" />
 
-	<param name="feature_extract_enable" type="bool" value="1"/>
-	<param name="point_filter_num_" type="int" value="1"/>
-	<param name="max_iteration" type="int" value="3" />
-	<param name="filter_size_surf" type="double" value="0.2" />
-	<param name="filter_size_map" type="double" value="0.3" />
-	<param name="cube_side_length" type="double" value="1000" />
-	<param name="runtime_pos_log_enable" type="bool" value="0" />
-    <!-- <node pkg="faster_lio" type="fastlio_mapping" name="laserMapping" output="screen" />  -->
-    <node pkg="faster_lio" type="run_mapping_online" name="laserMapping" output="screen"  />
+    <node pkg="faster_lio" type="run_mapping_online" name="laserMapping" output="screen" launch-prefix="xterm -e gdb -ex run -args"/>
+    <!-- <node pkg="faster_lio" type="run_mapping_online" name="laserMapping" output="screen"  /> -->
 
     <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args=" /home/bag/v1/xn_07/2023-07-14-11-01-33_dog_walk_chu.bag -d 20 -s 230 "/> -->
     <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args=" /home/bag/v1/xn_07/2023-07-14-10-36-11_dog_walk_jin.bag -d 20 "/> -->
-    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="log"  args=" /home/bag/v1/xn_09_nav/2023-09-21-11-02-57_rot.bag -d 2 -clock "/> -->
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args=" /home/bag/v1/xn_09_nav/2023-09-21-11-02-57_rot.bag -d 2  -s 5 -clock "/> -->
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/home/bag/v1_2nd/v1_2nd_nj__2023-10-17-16-53-41.bag  -d 3  -duration 160"/>    -->
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/home/bag/v1_2nd/v1_2nd_nj__2023-10-19-10-59-11.bag  -d 3 -clock"/>    -->
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/home/bag/v1/xn_09_nav/2023-10-18-14-55-42.bag  -d 2 -s 57 "/>    -->
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/home/bag/v1_2nd/changzhou/V1_2nd_changzhou_2023-12-07-8x2.bag  -d 3  -r 0.5 "/>    -->
+    <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/home/bag/v1_2nd/changzhou/V1_2nd_changzhou_2023-12-06-8x1.bag  -d 3  -r 0.5 "/>   
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/home/bag/v1_2nd/changzhou/V1_2nd_changzhou_chedi.bag  -d 3  -r 0.5 "/>    -->
 
 	<group if="$(arg rviz)">
 	    <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find faster_lio)/rviz_cfg/loam_livox.rviz" />
