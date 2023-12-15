@@ -1,0 +1,38 @@
+ubuntu18 上编译记录：
+
+1、在faster_lio文件夹下，建立build文件夹，然后cmake 指定tbb的路径
+cmake .. -DCUSTOM_TBB_DIR=`pwd`/../thirdparty/tbb2018_20170726oss
+
+2、
+export LD_LIBRARY_PATH=/usr/local/tbb-2019_U8/lib:$LD_LIBRARY_PATH
+
+3、
+make
+
+4、roslaunch
+
+
+
+
+ubuntu20 上编译记录：
+
+1、安装 thirdparty文件夹下的 oneTBB-2019_U8
+参考：https://blog.csdn.net/weixin_32207065/article/details/112270765
+cp build/linux.gcc.inc build/linux.gcc-9.inc 
+
+编辑 build/linux.gcc-9.inc
+# 把大约是15,16　行的CPLUS ?= g++　CONLY ?= gcc修改为下面语句，然后保存
+CPLUS ?= g++-9
+CONLY ?= gcc-9
+
+然后
+make compiler=gcc-9 stdver=c++17 tbb_build_prefix=my_tbb_build
+
+
+2、把编译出来的libtbb.so 、 libtbbmalloc.so 、 libtbbmalloc_proxy.so
+   cp到/usr/local/lib/文件夹下
+
+
+3、在 CMakeLists.txt 里面 删除掉对于上述库的绝对路径的引用
+
+4、catkin_make
