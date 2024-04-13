@@ -78,7 +78,13 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     nh.param<double>("mapping/b_gyr_cov", b_gyr_cov, 0.0001);
     nh.param<double>("mapping/b_acc_cov", b_acc_cov, 0.0001);
     nh.param<double>("preprocess/blind", preprocess_->Blind(), 0.01);
-    nh.param<double>("preprocess/max_blind", preprocess_->Max_Blind(), 200.0);
+    nh.param<double>("preprocess/rangeMinX", preprocess_->Set_rangeMinX(), -200.0);
+    nh.param<double>("preprocess/rangeMaxX", preprocess_->Set_rangeMaxX(), 200.0);
+    nh.param<double>("preprocess/rangeMinY", preprocess_->Set_rangeMinY(), -200.0);
+    nh.param<double>("preprocess/rangeMaxY", preprocess_->Set_rangeMaxY(), 200.0);
+    nh.param<double>("preprocess/rangeMinZ", preprocess_->Set_rangeMinZ(), -200.0);
+    nh.param<double>("preprocess/rangeMaxZ", preprocess_->Set_rangeMaxZ(), 200.0);    
+
     nh.param<float>("preprocess/time_scale", preprocess_->TimeScale(), 1e-3);
     nh.param<int>("preprocess/lidar_type", lidar_type, 1);
     nh.param<int>("preprocess/scan_line", preprocess_->NumScans(), 16);
@@ -200,6 +206,9 @@ bool LaserMapping::LoadParamsFromYAML(const std::string &yaml_file) {
     } else if (lidar_type == 3) {
         preprocess_->SetLidarType(LidarType::OUST64);
         LOG(INFO) << "Using OUST 64 Lidar";
+    } else if (lidar_type == 4) {
+        preprocess_->SetLidarType(LidarType::RoboSense);
+        LOG(INFO) << "Using RoboSense Lidar";
     } else {
         LOG(WARNING) << "unknown lidar_type";
         return false;
@@ -260,6 +269,7 @@ void LaserMapping::SubAndPubToROS(ros::NodeHandle &nh) {
     pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("Odometry", 100000);
     pub_path_ = nh.advertise<nav_msgs::Path>("path", 100000);
     pub_imu_pose_ = nh.advertise<geometry_msgs::PoseStamped>("imu_pose", 100000);
+    pub_lidar_pose_ = nh.advertise<geometry_msgs::PoseStamped>("lidar_pose", 100000);
 }
 
 LaserMapping::LaserMapping() {
@@ -666,7 +676,7 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
 
 void LaserMapping::PublishPath(const ros::Publisher pub_path) {
     SetPosestamp(msg_body_pose_);
-    msg_body_pose_.header.stamp = ros::Time().fromSec(lidar_end_time_);
+    msg_body_pose_.header.stamp = ros::Time().fromSec(measures_.lidar_bag_time_);
     msg_body_pose_.header.frame_id = "odom";
 
     /*** if path is too large, the rvis will crash ***/
@@ -679,7 +689,7 @@ void LaserMapping::PublishPath(const ros::Publisher pub_path) {
 void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     odom_aft_mapped_.header.frame_id = "odom";
     odom_aft_mapped_.child_frame_id = "imu";
-    odom_aft_mapped_.header.stamp = ros::Time().fromSec(lidar_end_time_);  // ros::Time().fromSec(lidar_end_time_);
+    odom_aft_mapped_.header.stamp = ros::Time().fromSec(measures_.lidar_bag_time_);  // ros::Time().fromSec(measures_.lidar_bag_time_);
     SetPosestamp(odom_aft_mapped_.pose);
     pub_odom_aft_mapped.publish(odom_aft_mapped_);
     auto P = kf_.get_P();
@@ -697,11 +707,34 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     imu_pose.pose = odom_aft_mapped_.pose.pose;
     pub_imu_pose_.publish(imu_pose);
 
+    // 提取位姿的姿态
+    Eigen::Vector3d translation(odom_aft_mapped_.pose.pose.position.x, odom_aft_mapped_.pose.pose.position.y, odom_aft_mapped_.pose.pose.position.z);
+    Eigen::Quaterniond quaternion(odom_aft_mapped_.pose.pose.orientation.w, odom_aft_mapped_.pose.pose.orientation.x, odom_aft_mapped_.pose.pose.orientation.y, odom_aft_mapped_.pose.pose.orientation.z);
+    Eigen::Matrix3d rotationMatrix = quaternion.normalized().toRotationMatrix();
+
+    Eigen::Vector3d T_lidar = rotationMatrix * state_point_.offset_T_L_I + translation; //平移 分量
+    Eigen::Matrix3d R_lidar = rotationMatrix * state_point_.offset_R_L_I ;    //旋转 分量 
+    Eigen::Quaterniond R_lidar_quat(R_lidar);
+    R_lidar_quat.normalize();
+
+    geometry_msgs::PoseStamped lidar_pose;
+    lidar_pose.header = odom_aft_mapped_.header;
+    lidar_pose.header.frame_id = "livox";
+    lidar_pose.pose.position.x = T_lidar(0);
+    lidar_pose.pose.position.y = T_lidar(1);
+    lidar_pose.pose.position.z = T_lidar(2);
+    lidar_pose.pose.orientation.x = R_lidar_quat.x();
+    lidar_pose.pose.orientation.y = R_lidar_quat.y();
+    lidar_pose.pose.orientation.z = R_lidar_quat.z();
+    lidar_pose.pose.orientation.w = R_lidar_quat.w();
+    pub_lidar_pose_.publish(lidar_pose);
+    
+
     static std::ofstream lio_path_file("/home/map/faster_lio_path.txt", std::ios::out);
     lio_path_file.open("/home/map/faster_lio_path.txt", std::ios::app);
     lio_path_file.setf(std::ios::fixed, std::ios::floatfield);
-    lio_path_file.precision(3);
-    lio_path_file << lidar_end_time_ - 0.09 << " "; // to lidar  start time
+    lio_path_file.precision(10);
+    lio_path_file << measures_.lidar_bag_time_  << " "; // to lidar  start time
     lio_path_file.precision(5);
 
     lio_path_file
@@ -773,7 +806,7 @@ void LaserMapping::PublishFrameWorld() {
     if (run_in_offline_ == false && scan_pub_en_) {
         sensor_msgs::PointCloud2 laserCloudmsg;
         pcl::toROSMsg(*laserCloudWorld, laserCloudmsg);
-        laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time_);
+        laserCloudmsg.header.stamp = ros::Time().fromSec(measures_.lidar_bag_time_);
         laserCloudmsg.header.frame_id = "odom";
         pub_laser_cloud_world_.publish(laserCloudmsg);
         publish_count_ -= options::PUBFRAME_PERIOD;
@@ -810,10 +843,14 @@ void LaserMapping::PublishFrameBody(const ros::Publisher &pub_laser_cloud_body) 
 
     sensor_msgs::PointCloud2 laserCloudmsg;
     pcl::toROSMsg(*laser_cloud_imu_body, laserCloudmsg);
-    laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time_);
+    laserCloudmsg.header.stamp = ros::Time().fromSec(measures_.lidar_bag_time_);
     laserCloudmsg.header.frame_id = "imu";
     pub_laser_cloud_body.publish(laserCloudmsg);
     publish_count_ -= options::PUBFRAME_PERIOD;
+
+    std::string pcd_file = "/home/liunao/csg/slam/navs/livos/result/xn_bak/xn_short/imu_pcd/" + std::to_string(measures_.lidar_bag_time_ ) + ".pcd"; 
+    pcd_file.erase(pcd_file.length() - 9, 5 ) ;
+    pcl::io::savePCDFile(pcd_file, *laser_cloud_imu_body);
 }
 
 void LaserMapping::PublishFrameEffectWorld(const ros::Publisher &pub_laser_cloud_effect_world) {
@@ -825,7 +862,7 @@ void LaserMapping::PublishFrameEffectWorld(const ros::Publisher &pub_laser_cloud
     }
     sensor_msgs::PointCloud2 laserCloudmsg;
     pcl::toROSMsg(*laser_cloud, laserCloudmsg);
-    laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time_);
+    laserCloudmsg.header.stamp = ros::Time().fromSec(measures_.lidar_bag_time_);
     laserCloudmsg.header.frame_id = "odom";
     pub_laser_cloud_effect_world.publish(laserCloudmsg);
     publish_count_ -= options::PUBFRAME_PERIOD;

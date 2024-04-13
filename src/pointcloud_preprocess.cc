@@ -19,7 +19,7 @@ void PointCloudPreprocess::Process(const livox_ros_driver::CustomMsg::ConstPtr &
     
     pcl::RadiusOutlierRemoval< PointType > outrem;
 	outrem.setInputCloud(pcl_out);
-	outrem.setRadiusSearch(1);
+	outrem.setRadiusSearch(0.2);
 	outrem.setMinNeighborsInRadius(2);
 	// apply filter
 	outrem.filter(*pcl_out);
@@ -46,6 +46,12 @@ void PointCloudPreprocess::Process(const sensor_msgs::PointCloud2::ConstPtr &msg
             break;
     }
     *pcl_out = cloud_out_;
+    // pcl::RadiusOutlierRemoval< PointType > outrem;
+	// outrem.setInputCloud(pcl_out);
+	// outrem.setRadiusSearch(0.2);
+	// outrem.setMinNeighborsInRadius(1);
+	// // apply filter
+	// outrem.filter(*pcl_out);
 }
 
 void PointCloudPreprocess::AviaHandler(const livox_ros_driver::CustomMsg::ConstPtr &msg) {
@@ -76,10 +82,7 @@ void PointCloudPreprocess::AviaHandler(const livox_ros_driver::CustomMsg::ConstP
 
                 if ((abs(cloud_full_[i].x - cloud_full_[i - 1].x) > 1e-7) ||
                     (abs(cloud_full_[i].y - cloud_full_[i - 1].y) > 1e-7) ||
-                    (abs(cloud_full_[i].z - cloud_full_[i - 1].z) > 1e-7) &&
-                        (cloud_full_[i].x * cloud_full_[i].x + cloud_full_[i].y * cloud_full_[i].y +
-                             cloud_full_[i].z * cloud_full_[i].z >
-                         (blind_ * blind_))) {
+                    (abs(cloud_full_[i].z - cloud_full_[i - 1].z) > 1e-7) ) {
                     is_valid_pt[i] = true;
                 }
             }
@@ -87,6 +90,18 @@ void PointCloudPreprocess::AviaHandler(const livox_ros_driver::CustomMsg::ConstP
     });
 
     for (uint i = 1; i < plsize; i++) {
+        float range_temp_sqrt = cloud_full_[i].x * cloud_full_[i].x + cloud_full_[i].y * cloud_full_[i].y + cloud_full_[i].z * cloud_full_[i].z ;
+        if(range_temp_sqrt < blind_ * blind_ ) // max_blind 认为是 雷达的有效探测范围
+        {
+          continue;
+        }
+        if ( cloud_full_[i].x < rangeMinX_ || cloud_full_[i].x > rangeMaxX_ || 
+            cloud_full_[i].y < rangeMinY_ || cloud_full_[i].y > rangeMaxY_ || 
+            cloud_full_[i].z < rangeMinZ_ || cloud_full_[i].z > rangeMaxZ_ )
+        {
+            continue;
+        }
+
         if (is_valid_pt[i]) {
             cloud_out_.points.push_back(cloud_full_[i]);
         }
@@ -120,6 +135,12 @@ void PointCloudPreprocess::Oust64Handler(const sensor_msgs::PointCloud2::ConstPt
         added_pt.normal_z = 0;
         added_pt.curvature = pl_orig.points[i].t / 1e6;  // curvature unit: ms
 
+        if ( added_pt.x < rangeMinX_ || added_pt.x > rangeMaxX_ || 
+            added_pt.y < rangeMinY_ || added_pt.y > rangeMaxY_ || 
+            added_pt.z < rangeMinZ_ || added_pt.z > rangeMaxZ_ )
+        {
+            continue;
+        }
         cloud_out_.points.push_back(added_pt);
     }
 }
@@ -194,6 +215,13 @@ void PointCloudPreprocess::VelodyneHandler(const sensor_msgs::PointCloud2::Const
             time_last[layer] = added_pt.curvature;
         }
 
+        if ( added_pt.x < rangeMinX_ || added_pt.x > rangeMaxX_ || 
+            added_pt.y < rangeMinY_ || added_pt.y > rangeMaxY_ || 
+            added_pt.z < rangeMinZ_ || added_pt.z > rangeMaxZ_ )
+            {
+                continue;
+            }
+
         if (i % point_filter_num_ == 0) {
             if (added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z > (blind_ * blind_)) {
                 cloud_out_.points.push_back(added_pt);
@@ -208,13 +236,13 @@ void PointCloudPreprocess::RobosenseHandler(const sensor_msgs::PointCloud2::Cons
 
     pcl::PointCloud< RsPointXYZIRT > pl_orig;
     pcl::fromROSMsg(*msg, pl_orig);
-
     // 激光雷达，去除 nan 点
     pl_orig.is_dense = false; // 万集的雷达必须加这一句
     std::vector<int> save_index;
     // ROS_ERROR("pl_orig->size()is %d",  pl_orig.size());
     pcl::removeNaNFromPointCloud(pl_orig, pl_orig, save_index);
     // ROS_ERROR("pl_orig->size()is %d",  pl_orig.size());
+    // ROS_ERROR("RobosenseHandler" );
 
     int plsize = pl_orig.points.size();
     if (plsize == 0)
@@ -241,10 +269,17 @@ void PointCloudPreprocess::RobosenseHandler(const sensor_msgs::PointCloud2::Cons
 
         if (i % point_filter_num_ == 0) {
             float range_temp_sqrt = added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z ;
-            if(range_temp_sqrt < blind_ * blind_ || range_temp_sqrt > max_blind_ * max_blind_ ) // max_blind 认为是 雷达的有效探测范围
+            if(range_temp_sqrt < blind_ * blind_ ) // max_blind 认为是 雷达的有效探测范围
             {
               continue;
             }
+
+        if ( added_pt.x < rangeMinX_ || added_pt.x > rangeMaxX_ || 
+             added_pt.y < rangeMinY_ || added_pt.y > rangeMaxY_ || 
+             added_pt.z < rangeMinZ_ || added_pt.z > rangeMaxZ_ )
+        {
+          continue;
+        }
             cloud_out_.points.push_back(added_pt);
         }
     }

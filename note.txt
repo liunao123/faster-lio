@@ -1,7 +1,12 @@
 ubuntu18 上编译记录：
+安装gcc-9与g++-9
+解压thirdparty下的tbb2018_20170726oss
 
 1、在faster_lio文件夹下，建立build文件夹，然后cmake 指定tbb的路径
 cmake .. -DCUSTOM_TBB_DIR=`pwd`/../thirdparty/tbb2018_20170726oss
+cmake .. -DCUSTOM_TBB_DIR=/home/liunao/csg/slam/navs/src/faster-lio/thirdparty/tbb2018_20170726oss
+
+
 
 2、
 export LD_LIBRARY_PATH=/usr/local/tbb-2019_U8/lib:$LD_LIBRARY_PATH

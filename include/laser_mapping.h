@@ -123,6 +123,7 @@ class LaserMapping {
     ros::Publisher pub_laser_cloud_effect_world_;
     ros::Publisher pub_odom_aft_mapped_;
     ros::Publisher pub_imu_pose_;
+    ros::Publisher pub_lidar_pose_;
     ros::Publisher pub_path_;
 
     std::mutex mtx_buffer_;
