@@ -721,7 +721,7 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
 
     geometry_msgs::PoseStamped lidar_pose;
     lidar_pose.header = odom_aft_mapped_.header;
-    lidar_pose.header.frame_id = "livox";
+    lidar_pose.header.frame_id = "odom";
     lidar_pose.pose.position.x = T_lidar(0);
     lidar_pose.pose.position.y = T_lidar(1);
     lidar_pose.pose.position.z = T_lidar(2);
