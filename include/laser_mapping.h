@@ -62,6 +62,7 @@ class LaserMapping {
     void PublishOdometry(const ros::Publisher &pub_odom_aft_mapped);
     void PublishFrameWorld();
     void PublishFrameBody(const ros::Publisher &pub_laser_cloud_body);
+    void PublishFrameUndistort(const ros::Publisher &pub_laser_undistort);
     void PublishFrameEffectWorld(const ros::Publisher &pub_laser_cloud_effect_world);
     void Savetrajectory(const std::string &traj_file);
 
@@ -120,6 +121,7 @@ class LaserMapping {
     ros::Subscriber sub_imu_;
     ros::Publisher pub_laser_cloud_world_;
     ros::Publisher pub_laser_cloud_body_;
+    ros::Publisher pub_laser_cloud_undistort;    
     ros::Publisher pub_laser_cloud_effect_world_;
     ros::Publisher pub_odom_aft_mapped_;
     ros::Publisher pub_imu_pose_;

@@ -265,6 +265,7 @@ void LaserMapping::SubAndPubToROS(ros::NodeHandle &nh) {
 
     pub_laser_cloud_world_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered", 100000);
     pub_laser_cloud_body_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered_body", 100000);
+    pub_laser_cloud_undistort = nh.advertise<sensor_msgs::PointCloud2>("undistort_laser", 100000);
     pub_laser_cloud_effect_world_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered_effect_world", 100000);
     pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("Odometry", 100000);
     pub_path_ = nh.advertise<nav_msgs::Path>("path", 100000);
@@ -356,6 +357,7 @@ void LaserMapping::Run() {
             PublishFrameWorld();
         }
         if (scan_pub_en_ && scan_body_pub_en_) {
+            PublishFrameUndistort(pub_laser_cloud_undistort);
             PublishFrameBody(pub_laser_cloud_body_);
         }
         if (scan_pub_en_ && scan_effect_pub_en_) {
@@ -737,14 +739,25 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     lio_path_file << measures_.lidar_bag_time_  << " "; // to lidar  start time
     lio_path_file.precision(5);
 
+    // lio_path_file
+    //     << odom_aft_mapped_.pose.pose.position.x << " "
+    //     << odom_aft_mapped_.pose.pose.position.y << " "
+    //     << odom_aft_mapped_.pose.pose.position.z << " "
+    //     << odom_aft_mapped_.pose.pose.orientation.x << " "
+    //     << odom_aft_mapped_.pose.pose.orientation.y << " "
+    //     << odom_aft_mapped_.pose.pose.orientation.z << " "
+    //     << odom_aft_mapped_.pose.pose.orientation.w << std::endl;
+    // lio_path_file.close();
+
+
     lio_path_file
-        << odom_aft_mapped_.pose.pose.position.x << " "
-        << odom_aft_mapped_.pose.pose.position.y << " "
-        << odom_aft_mapped_.pose.pose.position.z << " "
-        << odom_aft_mapped_.pose.pose.orientation.x << " "
-        << odom_aft_mapped_.pose.pose.orientation.y << " "
-        << odom_aft_mapped_.pose.pose.orientation.z << " "
-        << odom_aft_mapped_.pose.pose.orientation.w << std::endl;
+        << lidar_pose.pose.position.x << " "
+        << lidar_pose.pose.position.y << " "
+        << lidar_pose.pose.position.z << " "
+        << lidar_pose.pose.orientation.x << " "
+        << lidar_pose.pose.orientation.y << " "
+        << lidar_pose.pose.orientation.z << " "
+        << lidar_pose.pose.orientation.w << std::endl;
     lio_path_file.close();
 
     static tf::TransformBroadcaster br;
@@ -833,6 +846,21 @@ void LaserMapping::PublishFrameWorld() {
     }
 }
 
+void LaserMapping::PublishFrameUndistort(const ros::Publisher &pub_laser_undistort){
+    int size = scan_undistort_->points.size();
+    PointCloudType::Ptr laser_cloud_undistort(new PointCloudType(size, 1));
+    for (int i = 0; i < size; i++) {
+        laser_cloud_undistort->points[i].x = scan_undistort_->points[i].x;
+        laser_cloud_undistort->points[i].y = scan_undistort_->points[i].y;
+        laser_cloud_undistort->points[i].z = scan_undistort_->points[i].z;
+    }
+    sensor_msgs::PointCloud2 laserCloudmsg;
+    pcl::toROSMsg(*laser_cloud_undistort, laserCloudmsg);
+    laserCloudmsg.header.stamp = ros::Time().fromSec(measures_.lidar_bag_time_);
+    laserCloudmsg.header.frame_id = "lidar";
+    pub_laser_undistort.publish(laserCloudmsg);
+}
+
 void LaserMapping::PublishFrameBody(const ros::Publisher &pub_laser_cloud_body) {
     int size = scan_undistort_->points.size();
     PointCloudType::Ptr laser_cloud_imu_body(new PointCloudType(size, 1));
@@ -848,9 +876,9 @@ void LaserMapping::PublishFrameBody(const ros::Publisher &pub_laser_cloud_body) 
     pub_laser_cloud_body.publish(laserCloudmsg);
     publish_count_ -= options::PUBFRAME_PERIOD;
 
-    std::string pcd_file = "/home/liunao/csg/slam/navs/livos/result/xn_bak/xn_short/imu_pcd/" + std::to_string(measures_.lidar_bag_time_ ) + ".pcd"; 
-    pcd_file.erase(pcd_file.length() - 9, 5 ) ;
-    pcl::io::savePCDFile(pcd_file, *laser_cloud_imu_body);
+    // std::string pcd_file = "/home/liunao/csg/slam/navs/livos/result/xn_bak/xn_short/imu_pcd/" + std::to_string(measures_.lidar_bag_time_ ) + ".pcd"; 
+    // pcd_file.erase(pcd_file.length() - 9, 5 ) ;
+    // pcl::io::savePCDFile(pcd_file, *laser_cloud_imu_body);
 }
 
 void LaserMapping::PublishFrameEffectWorld(const ros::Publisher &pub_laser_cloud_effect_world) {
