@@ -737,7 +737,7 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     lio_path_file.setf(std::ios::fixed, std::ios::floatfield);
     lio_path_file.precision(10);
     lio_path_file << measures_.lidar_bag_time_  << " "; // to lidar  start time
-    lio_path_file.precision(5);
+    lio_path_file.precision(10);
 
     // lio_path_file
     //     << odom_aft_mapped_.pose.pose.position.x << " "

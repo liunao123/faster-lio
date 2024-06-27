@@ -69,8 +69,9 @@ void PointCloudPreprocess::AviaHandler(const livox_ros_driver::CustomMsg::ConstP
     }
 
     std::for_each(std::execution::par_unseq, index.begin(), index.end(), [&](const uint &i) {
-        if ((msg->points[i].line < num_scans_) &&
-            ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00)) {
+        if ( (msg->points[i].line < num_scans_) &&
+            // ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00)) {
+            (msg->points[i].tag & 0x30) == 0x10  ) {
             if (i % point_filter_num_ == 0) {
                 cloud_full_[i].x = msg->points[i].x;
                 cloud_full_[i].y = msg->points[i].y;
@@ -79,27 +80,27 @@ void PointCloudPreprocess::AviaHandler(const livox_ros_driver::CustomMsg::ConstP
                 cloud_full_[i].curvature =
                     msg->points[i].offset_time /
                     float(1000000);  // use curvature as time of each laser points, curvature unit: ms
-
+        // if(  ( ( msg->points[ i ].tag & 0x03 ) != 0x00 ) ||  ( ( msg->points[ i ].tag & 0x0C ) != 0x00 )  ) 
+        // {
+        // }
+        // else
+        // {
                 if ((abs(cloud_full_[i].x - cloud_full_[i - 1].x) > 1e-7) ||
                     (abs(cloud_full_[i].y - cloud_full_[i - 1].y) > 1e-7) ||
                     (abs(cloud_full_[i].z - cloud_full_[i - 1].z) > 1e-7) ) {
-                    is_valid_pt[i] = true;
+                    // if (msg->points[i].reflectivity < 120) 
+                    if (msg->points[i].tag == 16) 
+                      is_valid_pt[i] = true;
                 }
+        // }
             }
         }
     });
 
     for (uint i = 1; i < plsize; i++) {
-        float range_temp_sqrt = cloud_full_[i].x * cloud_full_[i].x + cloud_full_[i].y * cloud_full_[i].y + cloud_full_[i].z * cloud_full_[i].z ;
-        if(range_temp_sqrt < blind_ * blind_ ) // max_blind 认为是 雷达的有效探测范围
+        if(cloud_full_[i].x < blind_ ) // max_blind 认为是 雷达的有效探测范围
         {
           continue;
-        }
-        if ( cloud_full_[i].x < rangeMinX_ || cloud_full_[i].x > rangeMaxX_ || 
-            cloud_full_[i].y < rangeMinY_ || cloud_full_[i].y > rangeMaxY_ || 
-            cloud_full_[i].z < rangeMinZ_ || cloud_full_[i].z > rangeMaxZ_ )
-        {
-            continue;
         }
 
         if (is_valid_pt[i]) {
@@ -216,11 +217,11 @@ void PointCloudPreprocess::VelodyneHandler(const sensor_msgs::PointCloud2::Const
         }
 
         if ( added_pt.x < rangeMinX_ || added_pt.x > rangeMaxX_ || 
-            added_pt.y < rangeMinY_ || added_pt.y > rangeMaxY_ || 
-            added_pt.z < rangeMinZ_ || added_pt.z > rangeMaxZ_ )
-            {
-                continue;
-            }
+             added_pt.y < rangeMinY_ || added_pt.y > rangeMaxY_ || 
+             added_pt.z < rangeMinZ_ || added_pt.z > rangeMaxZ_ )
+        {
+          continue;
+        }
 
         if (i % point_filter_num_ == 0) {
             if (added_pt.x * added_pt.x + added_pt.y * added_pt.y + added_pt.z * added_pt.z > (blind_ * blind_)) {
@@ -236,6 +237,10 @@ void PointCloudPreprocess::RobosenseHandler(const sensor_msgs::PointCloud2::Cons
 
     pcl::PointCloud< RsPointXYZIRT > pl_orig;
     pcl::fromROSMsg(*msg, pl_orig);
+    
+    // ROS_WARN("first, last , msg->header.stamp.toSec() : %f . %f. %f ", pl_orig.points[0].timestamp , pl_orig.points.back().timestamp , msg->header.stamp.toSec());
+    auto first_point_time = pl_orig.points[0].timestamp;
+    
     // 激光雷达，去除 nan 点
     pl_orig.is_dense = false; // 万集的雷达必须加这一句
     std::vector<int> save_index;
@@ -250,12 +255,7 @@ void PointCloudPreprocess::RobosenseHandler(const sensor_msgs::PointCloud2::Cons
         ROS_ERROR("NO POINTS ......");
         return;
     }
-    
-    // ROS_WARN("first, last , msg->header.stamp.toSec() : %f . %f. %f ", pl_orig.points[0].timestamp , pl_orig.points.back().timestamp , msg->header.stamp.toSec());
-    auto first_point_time = pl_orig.points[0].timestamp;
-
     cloud_out_.reserve(plsize);
-
     for (int i = 0; i < plsize; i++) {
         PointType added_pt;
         added_pt.normal_x = 0;

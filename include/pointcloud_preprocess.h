@@ -91,7 +91,13 @@ class PointCloudPreprocess {
 
     // accessors
     double &Blind() { return blind_; }
-    double &Max_Blind() { return max_blind_; }
+    double &Set_rangeMinX() { return rangeMinX_; }
+    double &Set_rangeMaxX() { return rangeMaxX_; }
+    double &Set_rangeMinY() { return rangeMinY_; }
+    double &Set_rangeMaxY() { return rangeMaxY_; }
+    double &Set_rangeMinZ() { return rangeMinZ_; }
+    double &Set_rangeMaxZ() { return rangeMaxZ_; }
+    
     int &NumScans() { return num_scans_; }
     int &PointFilterNum() { return point_filter_num_; }
     bool &FeatureEnabled() { return feature_enabled_; }
@@ -112,7 +118,7 @@ class PointCloudPreprocess {
     int point_filter_num_ = 1;
     int num_scans_ = 6;
     double blind_ = 0.01;
-    double max_blind_ = 200.0;
+    double rangeMinX_ = -200.0 , rangeMaxX_ = 200.0,rangeMinY_ = -200.0 , rangeMaxY_ = 200.0,rangeMinZ_ = -200.0 , rangeMaxZ_ = 200.0;
     float time_scale_ = 1e-3;
     bool given_offset_time_ = false;
 };

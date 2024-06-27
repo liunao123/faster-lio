@@ -14,9 +14,6 @@ target_link_libraries(${PROJECT_NAME}
         tbb
         glog
         yaml-cpp
-        /usr/local/lib/libtbb.so
-        /usr/local/lib/libtbbmalloc.so
-        /usr/local/lib/libtbbmalloc_proxy.so
         )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PYTHON_INCLUDE_DIRS} ${PCL_LIBRARIES} )
