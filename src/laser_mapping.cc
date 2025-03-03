@@ -271,6 +271,7 @@ void LaserMapping::SubAndPubToROS(ros::NodeHandle &nh) {
     pub_path_ = nh.advertise<nav_msgs::Path>("path", 100000);
     pub_imu_pose_ = nh.advertise<geometry_msgs::PoseStamped>("imu_pose", 100000);
     pub_lidar_pose_ = nh.advertise<geometry_msgs::PoseStamped>("lidar_pose", 100000);
+    pub_lidar_odom_ = nh.advertise<nav_msgs::Odometry>("lidar_odom", 100000);
 }
 
 LaserMapping::LaserMapping() {
@@ -428,6 +429,10 @@ void LaserMapping::IMUCallBack(const sensor_msgs::Imu::ConstPtr &msg_in) {
     publish_count_++;
     sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
 
+     msg->linear_acceleration.x /= faster_lio::common::G_m_s2;
+     msg->linear_acceleration.y /= faster_lio::common::G_m_s2;
+     msg->linear_acceleration.z /= faster_lio::common::G_m_s2;
+    // ROS_WARN("linear_acceleration (%f) (%f) (%f)......",  msg->linear_acceleration.x,  msg->linear_acceleration.y,  msg->linear_acceleration.z );
     if (abs(timediff_lidar_wrt_imu_) > 0.1 && time_sync_en_) {
         msg->header.stamp = ros::Time().fromSec(timediff_lidar_wrt_imu_ + msg_in->header.stamp.toSec());
     }
@@ -719,6 +724,13 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     Eigen::Quaterniond R_lidar_quat(R_lidar);
     R_lidar_quat.normalize();
 
+    // 第一个lidar pose就是外参
+    static Eigen::Matrix3d first_lidar_pose_r = R_lidar;
+    static Eigen::Vector3d first_lidar_pose_t = T_lidar;
+    //  lidar的位姿全部统一到第一帧lidar的位姿上
+    R_lidar = first_lidar_pose_r.inverse() * R_lidar;
+    T_lidar = first_lidar_pose_r.inverse() * ( T_lidar - first_lidar_pose_t );
+
     geometry_msgs::PoseStamped lidar_pose;
     lidar_pose.header = odom_aft_mapped_.header;
     lidar_pose.header.frame_id = "odom";
@@ -730,25 +742,52 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     lidar_pose.pose.orientation.z = R_lidar_quat.z();
     lidar_pose.pose.orientation.w = R_lidar_quat.w();
     pub_lidar_pose_.publish(lidar_pose);
-    
+
+    static auto last_lidar_pose_R = R_lidar;
+    // publish lidar odometry
+    odom_aft_mapped_.header.frame_id = "odom";
+    odom_aft_mapped_.child_frame_id = "lidar";
+    odom_aft_mapped_.pose.pose = lidar_pose.pose;
+
+    // header.frame_id 坐标系下的速度转到 child_frame_id 坐标系下
+    // P_w = T_wi * P_i 对 时间求导
+    // V_w = R_wi * V_i // T_wi里面的平移部分求导被消除了
+    auto V_linear_child_frame_id  = quaternion.inverse() * state_point_.vel;
+
+    odom_aft_mapped_.twist.twist.linear.x = V_linear_child_frame_id.x();
+    odom_aft_mapped_.twist.twist.linear.y = V_linear_child_frame_id.y();
+    odom_aft_mapped_.twist.twist.linear.z = V_linear_child_frame_id.z();
+ 
+    // 两个相邻位姿的相对姿态的变换 然后得到角速度
+    Eigen::Quaterniond delta_quaternion(last_lidar_pose_R.inverse() * R_lidar);
+    // Eigen::Vector3d eulerAngle_ab = delta_quaternion.matrix().eulerAngles(2,1,0); // 第一个是 绕 z 的角速度
+    // odom_aft_mapped_.twist.twist.angular.x = 10.0 *  eulerAngle_ab(2) ; // eulerAngle_ab.z();
+    // odom_aft_mapped_.twist.twist.angular.y = 10.0 *  eulerAngle_ab(1) ; // eulerAngle_ab.y();
+    // odom_aft_mapped_.twist.twist.angular.z = 10.0 *  eulerAngle_ab(0) ; // eulerAngle_ab.x();
+
+    // HKU的旋转矩阵转欧拉角 消除EIGEN自带的有奇异性
+    Eigen::Matrix3d eulerAngle_ab = delta_quaternion.matrix();
+    Eigen::Vector3d n = eulerAngle_ab.col(0);
+    Eigen::Vector3d o = eulerAngle_ab.col(1);
+    Eigen::Vector3d a = eulerAngle_ab.col(2);
+    double y = atan2(n(1), n(0));
+    double p = atan2(-n(2), n(0) * cos(y) + n(1) * sin(y));
+    double r = atan2(a(0) * sin(y) - a(1) * cos(y), -o(0) * sin(y) + o(1) * cos(y));
+    odom_aft_mapped_.twist.twist.angular.x = 10.0 * r;
+    odom_aft_mapped_.twist.twist.angular.y = 10.0 * p;
+    odom_aft_mapped_.twist.twist.angular.z = 10.0 * y;
+
+
+    pub_lidar_odom_.publish(odom_aft_mapped_);
+
+    last_lidar_pose_R = R_lidar;
 
     static std::ofstream lio_path_file("/home/map/faster_lio_path.txt", std::ios::out);
     lio_path_file.open("/home/map/faster_lio_path.txt", std::ios::app);
     lio_path_file.setf(std::ios::fixed, std::ios::floatfield);
     lio_path_file.precision(10);
     lio_path_file << measures_.lidar_bag_time_  << " "; // to lidar  start time
-    lio_path_file.precision(10);
-
-    // lio_path_file
-    //     << odom_aft_mapped_.pose.pose.position.x << " "
-    //     << odom_aft_mapped_.pose.pose.position.y << " "
-    //     << odom_aft_mapped_.pose.pose.position.z << " "
-    //     << odom_aft_mapped_.pose.pose.orientation.x << " "
-    //     << odom_aft_mapped_.pose.pose.orientation.y << " "
-    //     << odom_aft_mapped_.pose.pose.orientation.z << " "
-    //     << odom_aft_mapped_.pose.pose.orientation.w << std::endl;
-    // lio_path_file.close();
-
+    lio_path_file.precision(5);
 
     lio_path_file
         << lidar_pose.pose.position.x << " "
@@ -853,6 +892,7 @@ void LaserMapping::PublishFrameUndistort(const ros::Publisher &pub_laser_undisto
         laser_cloud_undistort->points[i].x = scan_undistort_->points[i].x;
         laser_cloud_undistort->points[i].y = scan_undistort_->points[i].y;
         laser_cloud_undistort->points[i].z = scan_undistort_->points[i].z;
+        laser_cloud_undistort->points[i].intensity = scan_undistort_->points[i].intensity;
     }
     sensor_msgs::PointCloud2 laserCloudmsg;
     pcl::toROSMsg(*laser_cloud_undistort, laserCloudmsg);
