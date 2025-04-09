@@ -745,40 +745,40 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
 
     static auto last_lidar_pose_R = R_lidar;
     // publish lidar odometry
-    odom_aft_mapped_.header.frame_id = "odom";
-    odom_aft_mapped_.child_frame_id = "lidar";
-    odom_aft_mapped_.pose.pose = lidar_pose.pose;
+    nav_msgs::Odometry lidar_odom;
+    lidar_odom.header = odom_aft_mapped_.header;
+    lidar_odom.child_frame_id = "lidar";
+    lidar_odom.pose.pose = lidar_pose.pose;
 
     // header.frame_id 坐标系下的速度转到 child_frame_id 坐标系下
     // P_w = T_wi * P_i 对 时间求导
     // V_w = R_wi * V_i // T_wi里面的平移部分求导被消除了
-    auto V_linear_child_frame_id  = quaternion.inverse() * state_point_.vel;
+    auto V_linear_child_frame_id  = quaternion.inverse().toRotationMatrix() * state_point_.vel;
 
-    odom_aft_mapped_.twist.twist.linear.x = V_linear_child_frame_id.x();
-    odom_aft_mapped_.twist.twist.linear.y = V_linear_child_frame_id.y();
-    odom_aft_mapped_.twist.twist.linear.z = V_linear_child_frame_id.z();
- 
+    lidar_odom.twist.twist.linear.x = V_linear_child_frame_id.x();
+    lidar_odom.twist.twist.linear.y = V_linear_child_frame_id.y();
+    lidar_odom.twist.twist.linear.z = V_linear_child_frame_id.z();
+
     // 两个相邻位姿的相对姿态的变换 然后得到角速度
     Eigen::Quaterniond delta_quaternion(last_lidar_pose_R.inverse() * R_lidar);
     // Eigen::Vector3d eulerAngle_ab = delta_quaternion.matrix().eulerAngles(2,1,0); // 第一个是 绕 z 的角速度
-    // odom_aft_mapped_.twist.twist.angular.x = 10.0 *  eulerAngle_ab(2) ; // eulerAngle_ab.z();
-    // odom_aft_mapped_.twist.twist.angular.y = 10.0 *  eulerAngle_ab(1) ; // eulerAngle_ab.y();
-    // odom_aft_mapped_.twist.twist.angular.z = 10.0 *  eulerAngle_ab(0) ; // eulerAngle_ab.x();
+    // lidar_odom.twist.twist.angular.x = 10.0 *  eulerAngle_ab(2) ; // eulerAngle_ab.z();
+    // lidar_odom.twist.twist.angular.y = 10.0 *  eulerAngle_ab(1) ; // eulerAngle_ab.y();
+    // lidar_odom.twist.twist.angular.z = 10.0 *  eulerAngle_ab(0) ; // eulerAngle_ab.x();
 
     // HKU的旋转矩阵转欧拉角 消除EIGEN自带的有奇异性
     Eigen::Matrix3d eulerAngle_ab = delta_quaternion.matrix();
     Eigen::Vector3d n = eulerAngle_ab.col(0);
     Eigen::Vector3d o = eulerAngle_ab.col(1);
     Eigen::Vector3d a = eulerAngle_ab.col(2);
-    double y = atan2(n(1), n(0));
-    double p = atan2(-n(2), n(0) * cos(y) + n(1) * sin(y));
-    double r = atan2(a(0) * sin(y) - a(1) * cos(y), -o(0) * sin(y) + o(1) * cos(y));
-    odom_aft_mapped_.twist.twist.angular.x = 10.0 * r;
-    odom_aft_mapped_.twist.twist.angular.y = 10.0 * p;
-    odom_aft_mapped_.twist.twist.angular.z = 10.0 * y;
+    double y = std::atan2(n(1), n(0));
+    double p = std::atan2(-n(2), n(0) * cos(y) + n(1) * sin(y));
+    double r = std::atan2(a(0) * sin(y) - a(1) * cos(y), -o(0) * sin(y) + o(1) * cos(y));
+    lidar_odom.twist.twist.angular.x = 10.0 * r;
+    lidar_odom.twist.twist.angular.y = 10.0 * p;
+    lidar_odom.twist.twist.angular.z = 10.0 * y;
 
-
-    pub_lidar_odom_.publish(odom_aft_mapped_);
+    pub_lidar_odom_.publish(lidar_odom);
 
     last_lidar_pose_R = R_lidar;
 
