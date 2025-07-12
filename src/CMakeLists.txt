@@ -11,7 +11,9 @@ target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
         ${PYTHON_LIBRARIES}
-        tbb
+        /usr/local/lib/libtbb.so
+        /usr/local/lib/libtbbmalloc.so
+        /usr/local/lib/libtbbmalloc_proxy.so
         glog
         yaml-cpp
         )

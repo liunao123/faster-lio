@@ -41,3 +41,46 @@ make compiler=gcc-9 stdver=c++17 tbb_build_prefix=my_tbb_build
 3、在 CMakeLists.txt 里面 删除掉对于上述库的绝对路径的引用
 
 4、catkin_make
+
+
+
+ubuntu22 上编译记录：
+安装gcc-9与g++-9
+ 
+0、安装 thirdparty文件夹下的 oneTBB-2020_U3
+参考：https://blog.csdn.net/qq_39779233/article/details/126284595
+cp build/linux.gcc.inc build/linux.gcc-9.inc 
+
+编辑 linux.gcc-9.inc 文件：
+ 
+15 CPLUS ?= g++-9
+16 CONLY ?= gcc-9
+
+cd oneTBB-2020_U3
+make compiler=gcc-9 stdver=c++17 tbb_build_prefix=my_tbb_build
+
+
+
+sudo mkdir /usr/local/tbb-2020_U3
+
+sudo cp -r oneTBB-2020_U3/include /usr/local/tbb-2020_U3/include
+# 建立新安装tbb版本的符号链接
+sudo ln -s /usr/local/tbb-2020_U3/include/tbb /usr/local/include/tbb
+
+sudo cp -r oneTBB-2020_U3/build/my_tbb_build_release /usr/local/tbb-2020_U3/lib
+# 建立新安装tbb版本的符号链接
+sudo ln -s /usr/local/tbb-2020_U3/lib/libtbb.so.2 /usr/local/lib/libtbb.so
+sudo ln -s /usr/local/tbb-2020_U3/lib/libtbbmalloc.so.2 /usr/local/lib/libtbbmalloc.so
+sudo ln -s /usr/local/tbb-2020_U3/lib/libtbbmalloc_proxy.so.2 /usr/local/lib/libtbbmalloc_proxy.so
+
+
+1、在faster_lio文件夹下，建立build文件夹，然后cmake 指定tbb的路径
+cmake .. -DCUSTOM_TBB_DIR=/usr/local/tbb-2020_U3 
+
+2、
+ add    #include <deque>    in common_lib.h file
+
+3、
+make
+
+4、roslaunch

@@ -114,6 +114,9 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     } else if (lidar_type == 4) {
         preprocess_->SetLidarType(LidarType::RoboSense);
         LOG(INFO) << "Using RoboSense Lidar";
+    } else if (lidar_type == 5) {
+        preprocess_->SetLidarType(LidarType::HeSai);
+        LOG(INFO) << "Using HeSai Lidar";
     } else {
         LOG(WARNING) << "unknown lidar_type";
         return false;
@@ -429,10 +432,13 @@ void LaserMapping::IMUCallBack(const sensor_msgs::Imu::ConstPtr &msg_in) {
     publish_count_++;
     sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
 
-     msg->linear_acceleration.x /= faster_lio::common::G_m_s2;
-     msg->linear_acceleration.y /= faster_lio::common::G_m_s2;
-     msg->linear_acceleration.z /= faster_lio::common::G_m_s2;
-    // ROS_WARN("linear_acceleration (%f) (%f) (%f)......",  msg->linear_acceleration.x,  msg->linear_acceleration.y,  msg->linear_acceleration.z );
+    if (std::fabs(msg->linear_acceleration.z) > 5.0)
+    {
+         msg->linear_acceleration.x /= faster_lio::common::G_m_s2;
+         msg->linear_acceleration.y /= faster_lio::common::G_m_s2;
+         msg->linear_acceleration.z /= faster_lio::common::G_m_s2;
+        // ROS_WARN("linear_acceleration (%f) (%f) (%f)......",  msg->linear_acceleration.x,  msg->linear_acceleration.y,  msg->linear_acceleration.z );
+    }
     if (abs(timediff_lidar_wrt_imu_) > 0.1 && time_sync_en_) {
         msg->header.stamp = ros::Time().fromSec(timediff_lidar_wrt_imu_ + msg_in->header.stamp.toSec());
     }

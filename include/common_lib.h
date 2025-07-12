@@ -16,7 +16,7 @@
 #include "faster_lio/Pose6D.h"
 #include "options.h"
 #include "so3_math.h"
-
+#include <deque>
 using PointType = pcl::PointXYZINormal;
 using PointCloudType = pcl::PointCloud<PointType>;
 using CloudPtr = PointCloudType::Ptr;
