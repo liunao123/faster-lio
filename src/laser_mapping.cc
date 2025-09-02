@@ -727,8 +727,6 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
 
     Eigen::Vector3d T_lidar = rotationMatrix * state_point_.offset_T_L_I + translation; //平移 分量
     Eigen::Matrix3d R_lidar = rotationMatrix * state_point_.offset_R_L_I ;    //旋转 分量 
-    Eigen::Quaterniond R_lidar_quat(R_lidar);
-    R_lidar_quat.normalize();
 
     // 第一个lidar pose就是外参
     static Eigen::Matrix3d first_lidar_pose_r = R_lidar;
@@ -736,6 +734,8 @@ void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
     //  lidar的位姿全部统一到第一帧lidar的位姿上
     R_lidar = first_lidar_pose_r.inverse() * R_lidar;
     T_lidar = first_lidar_pose_r.inverse() * ( T_lidar - first_lidar_pose_t );
+    Eigen::Quaterniond R_lidar_quat(R_lidar);
+    R_lidar_quat.normalize();
 
     geometry_msgs::PoseStamped lidar_pose;
     lidar_pose.header = odom_aft_mapped_.header;

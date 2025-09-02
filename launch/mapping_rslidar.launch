@@ -1,0 +1,27 @@
+<launch>
+  <!-- Launch file for velodyne16 VLP-16 LiDAR -->
+
+    <arg name="rviz" default="true" />
+    <arg name="/use_sim_time" default="true" />
+
+    <rosparam command="load" file="$(find faster_lio)/config/rslidar.yaml" />
+
+    <param name="feature_extract_enable" type="bool" value="0"/>
+    <param name="point_filter_num_" type="int" value="1"/>
+    <param name="max_iteration" type="int" value="3" />
+    <param name="filter_size_surf" type="double" value="0.1" />
+    <param name="filter_size_map" type="double" value="0.3" />
+    <param name="cube_side_length" type="double" value="1000" />
+    <param name="runtime_pos_log_enable" type="bool" value="0" />
+    <node pkg="faster_lio" type="run_mapping_online" name="laserMapping" output="screen" /> 
+
+    <group if="$(arg rviz)">
+    <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find faster_lio)/rviz_cfg/loam_livox.rviz" />
+    </group>
+    <!-- <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/mnt/nvme0n1p2/data/0829/lio.bag -d 2 "/>    -->
+    <node pkg="rosbag" type="play" name="bag_play"  required="true"  output="screen"  args="/mnt/nvme0n1p2/data/30/tj_qcsl_0830.bag -d 2 "/>   
+  
+    <!-- <node pkg="tf" type="static_transform_publisher" name="base_to_lidar_broadcaster" args="0 -0.20 0.3  0  0  -0.7071068  0.7071068 imu rslidar 100" /> -->
+
+
+</launch>
